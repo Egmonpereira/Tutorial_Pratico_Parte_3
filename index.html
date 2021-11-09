@@ -11,10 +11,17 @@
 	    src="js/jquery-3.2.1.min.js">
         </script>
 
+        <script type="text/javascript" 
+        src="js/webgl-utils.js">
+        </script>
+
         <script type="text/javascript">
             // Iniciar o ambiente quando a página for 
             // carregada
             var mMatrix = mat4.create();
+            var vMatrix = mat4.create();
+            var pMatrix = mat4.create();
+            var mMatrixPilha = [];
             var vMatrix = mat4.create();
             var pMatrix = mat4.create();
 
@@ -22,6 +29,9 @@
             var triangleVertexColorBuffer;
             var squareVertexPositionBuffer;
             var squareVertexColorBuffer;
+
+            var rTri = 0;
+            var rQuad= 0;
 
             $(function()
                 {
@@ -36,7 +46,7 @@
                 iniciarShaders();  // Obter e processar os Shaders
                 iniciarBuffers();  // Enviar o triângulo e quadrado na GPU
                 iniciarAmbiente(); // Definir background e cor do objeto
-                desenharCena();    // Usar os itens anteriores e desenhar
+                tick();            // Desenhar a cena repetidamente
             }
 
             function iniciarGL(canvas)  {
@@ -187,6 +197,12 @@
                 gl.clearColor(0.0, 0.0, 0.0, 1.0);
                 gl.enable(gl.DEPTH_TEST);
             }
+ 
+            function tick() {
+                requestAnimFrame(tick);
+                desenharCena();
+                animar();
+            }
 
             function desenharCena() {
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -194,25 +210,11 @@
                 mat4.identity(mMatrix);
                 mat4.identity(vMatrix);
                 
-                /* Desenhando Triângulo
-                var translation = vec3.create();
-                vec3.set (translation, -1.5, 1.0, -7.0); 
-                mat4.translate(mMatrix, mMatrix, translation);
-                gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                setMatrixUniforms();
-                gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
-                
-                // Desenhando o Quadrado
-                vec3.set (translation, 3.0, 0.0, 0.0); 
-                mat4.translate(mMatrix, mMatrix, translation);
-                gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                setMatrixUniforms();
-                gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertexPositionBuffer.numItems);*/
-
                 // Desenhando Triângulo
                 mat4.translate(mMatrix, mMatrix, [-1.5, 0.0, -7.0]);
+                mPushMatrix();
+                mat4.rotate(mMatrix, mMatrix, degToRad(rTri), [0, 1, 0]);
+
                 gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
                 gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
                 /*--Adicione estas duas linhas--*/
@@ -220,9 +222,14 @@
                 gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, triangleVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                 setMatrixUniforms();
                 gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
+
+                mPopMatrix(); 
                 
                 // Desenhando o Quadrado
                 mat4.translate(mMatrix, mMatrix, [3.0, 0.0, 0.0]);
+                mPushMatrix();
+                mat4.rotate(mMatrix, mMatrix, degToRad(rQuad), [1, 0, 0]);
+
                 gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
                 gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
                 /*--Adicione estas duas linhas--*/
@@ -230,6 +237,37 @@
                 gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, squareVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                 setMatrixUniforms();
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertexPositionBuffer.numItems);
+
+                mPopMatrix();
+            }
+
+            var ultimo = 0;
+            function animar()
+            {
+                var agora = new Date().getTime();
+                if(ultimo != 0)
+                {
+                var diferenca = agora - ultimo;
+                rTri  += ((90*diferenca)/1000.0) % 360.0;
+                rQuad += ((75*diferenca)/1000.0) % 360.0;
+                }
+                ultimo = agora;
+            }
+
+            function mPushMatrix() {
+                var copy = mat4.clone(mMatrix);
+                mMatrixPilha.push(copy);
+            }
+
+            function mPopMatrix() {
+                if (mMatrixPilha.length == 0) {
+                throw "inválido popMatrix!";
+                }
+                mMatrix = mMatrixPilha.pop();
+            }
+    
+            function degToRad(graus) {
+                return graus * Math.PI / 180;
             }
 
             function setMatrixUniforms()    {
